@@ -37,7 +37,7 @@ fn main() {
                           .author("Misty De Meo")
                           .about("Display Sega FILM metadata")
                           .arg(Arg::with_name("input")
-                              .help("Script files to process")
+                              .help("CPK file to inspect")
                               .required(true))
                           .get_matches();
     let input = matches.value_of("input").unwrap();
