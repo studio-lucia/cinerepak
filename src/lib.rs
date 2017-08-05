@@ -21,16 +21,21 @@ pub struct FILMHeader {
 }
 
 impl FILMHeader {
-    pub fn parse(data : &[u8]) -> FILMHeader {
-        let length = uint32_from_bytes([data[4], data[5], data[6], data[7]]) as usize;
-        return FILMHeader {
-            signature: String::from_utf8(data[0..3].to_vec()).unwrap(),
-            length: length,
-            version: String::from_utf8(data[8..11].to_vec()).unwrap(),
-            unknown: data[12..15].to_vec(),
-            fdsc: FDSC::parse(&data[16..47]),
-            stab: STAB::parse(&data[48..length]),
+    pub fn parse(data : &[u8]) -> Result<FILMHeader, &'static str> {
+        let signature = String::from_utf8(data[0..4].to_vec()).unwrap();
+        if signature != "FILM" {
+            return Err("This is not a Sega FILM file!");
         }
+        let length = uint32_from_bytes([data[4], data[5], data[6], data[7]]) as usize;
+
+        return Ok(FILMHeader {
+            signature: signature,
+            length: length,
+            version: String::from_utf8(data[8..12].to_vec()).unwrap(),
+            unknown: data[12..16].to_vec(),
+            fdsc: FDSC::parse(&data[16..48]),
+            stab: STAB::parse(&data[48..length]),
+        });
     }
 }
 
