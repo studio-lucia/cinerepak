@@ -71,6 +71,14 @@ impl FDSC {
             audio_sampling_rate: uint16_from_bytes([data[24], data[25]]),
         };
     }
+
+    pub fn audio_codec(&self) -> &'static str {
+        if self.audio_compression == 0 {
+            return "pcm";
+        } else {
+            return "adx";
+        }
+    }
 }
 
 struct STAB {
