@@ -149,6 +149,6 @@ impl Sample {
     // For the purpose of this program, we don't care about video data at all;
     // we just want to be able to identify which samples are audio.
     pub fn is_audio(&self) -> bool {
-        return self.info1 == [1, 1, 1, 1];
+        return self.info1 == [255, 255, 255, 255];
     }
 }
