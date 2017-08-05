@@ -1,2 +1,13 @@
 target/
 **/*.rs.bk
+
+# Test data files
+*.CPK
+*.flac
+*.m1v
+*.m2a
+*.m4v
+*.MPG
+*.raw
+*.STR
+*.wav
