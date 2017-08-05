@@ -11,10 +11,12 @@ use cinerepak::{FILMHeader, Sample};
 extern crate clap;
 use clap::{Arg, App};
 
-fn copy_sample(sample : &Sample, cpk_data : &[u8], audio_file : &mut File, output_file : &mut File) -> io::Result<()> {
+fn copy_sample(start_of_data : usize, sample : &Sample, cpk_data : &[u8], audio_file : &mut File, output_file : &mut File) -> io::Result<()> {
+    let start_offset = sample.offset + start_of_data;
+
     // Pass through video samples unaltered
     if !sample.is_audio() {
-        output_file.write(&cpk_data[sample.offset..sample.offset + sample.length])?;
+        output_file.write(&cpk_data[start_offset..start_offset + sample.length])?;
         return Ok(());
     }
 
@@ -98,7 +100,7 @@ fn main() {
     output_file.write(&input_video_buf[0..header.length]).unwrap();
     // Next copy through every sample
     for sample in header.stab.sample_table {
-        match copy_sample(&sample, &input_video_buf, &mut input_audio_file, &mut output_file) {
+        match copy_sample(header.length, &sample, &input_video_buf, &mut input_audio_file, &mut output_file) {
             Ok(_) => {},
             Err(e) => {
                 println!("Error processing sample at offset {}: {}", sample.offset, e);
