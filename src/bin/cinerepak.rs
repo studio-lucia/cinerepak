@@ -21,7 +21,7 @@ fn copy_sample(start_of_data : usize, sample : &Sample, cpk_data : &[u8], audio_
     }
 
     let mut buf = vec![0; sample.length];
-    audio_file.read_to_end(&mut buf)?;
+    audio_file.read(&mut buf)?;
     output_file.write(&buf)?;
 
     return Ok(());
