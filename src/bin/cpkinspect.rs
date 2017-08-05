@@ -27,7 +27,7 @@ fn print_header_info(filename : &str, header : &FILMHeader) {
     println!("Audio:");
     println!("Format: {}", header.fdsc.audio_codec().to_uppercase());
     println!("Bit rate: {}", header.fdsc.audio_resolution);
-    println!("Sampling rate: {}", header.fdsc.audio_sampling_rate);
+    println!("Sampling rate: {} Hz", header.fdsc.audio_sampling_rate);
     println!("");
 }
 
