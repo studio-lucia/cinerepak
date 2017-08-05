@@ -62,6 +62,14 @@ fn main() {
     let mut buffer = vec![0; 128_000];
     input_file.read(&mut buffer).unwrap();
 
-    let header = FILMHeader::parse(&buffer);
+    let header;
+    match FILMHeader::parse(&buffer) {
+        Ok(h) => header = h,
+        Err(e) => {
+            println!("Encountered an error processing file {}:", input);
+            println!("{}", e);
+            exit(1);
+        }
+    }
     print_header_info(&input, &header);
 }
