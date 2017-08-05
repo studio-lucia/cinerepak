@@ -12,7 +12,7 @@ fn uint16_from_bytes(bytes : [u8; 2]) -> u16 {
 pub struct FILMHeader {
     // Always 'FILM'
     signature: String,
-    length: usize,
+    pub length: usize,
     pub version: String,
     #[allow(dead_code)]
     unknown: Vec<u8>,
@@ -103,7 +103,7 @@ pub struct STAB {
     pub framerate: u32,
     // Number of entries in the sample table
     entries: u32,
-    sample_table: Vec<Sample>,
+    pub sample_table: Vec<Sample>,
 }
 
 impl STAB {
@@ -129,9 +129,9 @@ impl STAB {
     }
 }
 
-struct Sample {
-    offset: usize,
-    length: usize,
+pub struct Sample {
+    pub offset: usize,
+    pub length: usize,
     info1: [u8; 4],
     info2: [u8; 4],
 }
