@@ -9,18 +9,19 @@ fn uint16_from_bytes(bytes : [u8; 2]) -> u16 {
     return ((bytes[0] as u16) << 8) + bytes[1] as u16;
 }
 
-struct FILMHeader {
+pub struct FILMHeader {
     // Always 'FILM'
     signature: String,
     length: usize,
-    version: String,
+    pub version: String,
+    #[allow(dead_code)]
     unknown: Vec<u8>,
-    fdsc: FDSC,
-    stab: STAB,
+    pub fdsc: FDSC,
+    pub stab: STAB,
 }
 
 impl FILMHeader {
-    fn parse(data : &[u8]) -> FILMHeader {
+    pub fn parse(data : &[u8]) -> FILMHeader {
         let length = uint32_from_bytes([data[4], data[5], data[6], data[7]]) as usize;
         return FILMHeader {
             signature: String::from_utf8(data[0..3].to_vec()).unwrap(),
@@ -33,20 +34,20 @@ impl FILMHeader {
     }
 }
 
-struct FDSC {
+pub struct FDSC {
     // Always 'FDSC'
     signature: String,
     length: u32,
     fourcc: String,
-    height: u32,
-    width: u32,
+    pub height: u32,
+    pub width: u32,
     // In practice always 24
-    bpp: u8,
-    channels: u8,
+    pub bpp: u8,
+    pub channels: u8,
     // Always 8 or 32
-    audio_resolution: u8,
-    audio_compression: u8,
-    audio_sampling_rate: u16,
+    pub audio_resolution: u8,
+    pub audio_compression: u8,
+    pub audio_sampling_rate: u16,
 }
 
 impl FDSC {
@@ -79,14 +80,22 @@ impl FDSC {
             return "adx";
         }
     }
+
+    pub fn human_readable_fourcc(&self) -> &'static str {
+        if self.fourcc == "cvid" {
+            return "Cinepak";
+        } else {
+            return "Raw video";
+        }
+    }
 }
 
-struct STAB {
+pub struct STAB {
     // Always 'STAB'
     signature: String,
     length: u32,
     // in Hz
-    framerate: u32,
+    pub framerate: u32,
     // Number of entries in the sample table
     entries: u32,
     sample_table: Vec<Sample>,
