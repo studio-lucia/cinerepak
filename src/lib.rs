@@ -21,6 +21,15 @@ pub struct FILMHeader {
 }
 
 impl FILMHeader {
+    pub fn guess_length(data : &[u8]) -> usize {
+        return uint32_from_bytes([data[4], data[5], data[6], data[7]]) as usize;
+    }
+
+    pub fn is_film_file(data : &[u8]) -> bool {
+        let signature = String::from_utf8(data[0..4].to_vec()).unwrap();
+        return signature == "FILM";
+    }
+
     pub fn parse(data : &[u8]) -> Result<FILMHeader, &'static str> {
         let signature = String::from_utf8(data[0..4].to_vec()).unwrap();
         if signature != "FILM" {
