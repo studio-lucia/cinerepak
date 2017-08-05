@@ -9,12 +9,12 @@ fn uint16_from_bytes(bytes : [u8; 2]) -> u16 {
     return ((bytes[0] as u16) << 8) + bytes[1] as u16;
 }
 
-struct FILMHeader<'a> {
+struct FILMHeader {
     // Always 'FILM'
     signature: String,
     length: u32,
     version: String,
-    fdsc: &'a FDSC,
+    fdsc: FDSC,
     stab: STAB,
 }
 
