@@ -116,8 +116,8 @@ impl STAB {
 }
 
 struct Sample {
-    offset: u32,
-    length: u32,
+    offset: usize,
+    length: usize,
     info1: [u8; 4],
     info2: [u8; 4],
 }
@@ -125,8 +125,8 @@ struct Sample {
 impl Sample {
     pub fn parse(data : &[u8]) -> Sample {
         return Sample {
-            offset: uint32_from_bytes([data[0], data[1], data[2], data[3]]),
-            length: uint32_from_bytes([data[4], data[5], data[6], data[7]]),
+            offset: uint32_from_bytes([data[0], data[1], data[2], data[3]]) as usize,
+            length: uint32_from_bytes([data[4], data[5], data[6], data[7]]) as usize,
             info1: [data[8], data[9], data[10], data[11]],
             info2: [data[12], data[13], data[14], data[15]],
         }
