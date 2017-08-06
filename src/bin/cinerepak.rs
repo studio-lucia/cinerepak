@@ -75,6 +75,18 @@ fn main() {
             exit(1);
         }
     }
+
+    // Sega FILM uses a planar audio format, rather than the standard
+    // interleaved stereo used by most audio formats.
+    // In most audio formats, each pair of left/right audio samples is interleaved.
+    // It looks like this: L R L R L R L R
+    // In Sega FILM files, each audio chunk instead groups together batches of
+    // left/right audio samples. The first half of a chunk contains left samples,
+    // and the second half contains right samples. It looks something like this:
+    // L L L L R R R R
+    // To accommodate that, we need to separate the audio data into left/right
+    // segments here so that they can be reformatted into planar chunks as
+    // necessary.
     let mut input_audio_data = vec![];
     input_audio_file.read_to_end(&mut input_audio_data).unwrap();
     let left_vec = input_audio_data.chunks(4)
