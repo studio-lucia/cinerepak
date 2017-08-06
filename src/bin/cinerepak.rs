@@ -11,61 +11,7 @@ use cinerepak::{FILMHeader, Sample};
 extern crate clap;
 use clap::{Arg, App};
 
-enum Channel {
-    Left,
-    Right,
-}
-
-struct FlipFlopReader {
-    left: Vec<u8>,
-    right: Vec<u8>,
-    next_sample: Channel,
-}
-
-impl FlipFlopReader {
-    fn from_interleaved(data : &[u8]) -> FlipFlopReader {
-        let left = data.chunks(2)
-                       .map(|pair| pair[0])
-                       .collect();
-        let right = data.chunks(2)
-                        .map(|pair| pair[1])
-                        .collect();
-
-        return FlipFlopReader {
-            left: left,
-            right: right,
-            next_sample: Channel::Left,
-        }
-    }
-
-    fn read(&mut self, mut length : usize) -> io::Result<Vec<u8>> {
-        match self.next_sample {
-            Channel::Left => {
-                if length > self.left.len() {
-                    length = self.left.len();
-                }
-                let range = 0..length;
-
-                let bytes = self.left.drain(range).collect::<Vec<u8>>();
-                self.next_sample = Channel::Right;
-
-                return Ok(bytes);
-            }
-            Channel::Right => {
-                if length > self.right.len() {
-                    length = self.right.len();
-                }
-                let range = 0..length;
-
-                let bytes = self.right.drain(range).collect::<Vec<u8>>();
-                self.next_sample = Channel::Left;
-                return Ok(bytes)
-            }
-        }
-    }
-}
-
-fn copy_sample(start_of_data : usize, sample : &Sample, cpk_data : &[u8], audio_data : &mut FlipFlopReader, output_file : &mut File) -> io::Result<()> {
+fn copy_sample(start_of_data : usize, sample : &Sample, cpk_data : &[u8], mut left_audio_buf : &mut io::Cursor<Vec<u8>>, mut right_audio_buf : &mut io::Cursor<Vec<u8>>, output_file : &mut File) -> io::Result<()> {
     let start_offset = sample.offset + start_of_data;
 
     // Pass through video samples unaltered
@@ -74,8 +20,12 @@ fn copy_sample(start_of_data : usize, sample : &Sample, cpk_data : &[u8], audio_
         return Ok(());
     }
 
-    let buf = audio_data.read(sample.length)?;
-    output_file.write(&buf)?;
+    let mut left_buf = vec![0; sample.length / 2];
+    left_audio_buf.read(&mut left_buf)?;
+    let mut right_buf = vec![0; sample.length / 2];
+    right_audio_buf.read(&mut right_buf)?;
+    left_buf.extend(right_buf);
+    output_file.write(&left_buf)?;
 
     return Ok(());
 }
@@ -127,7 +77,14 @@ fn main() {
     }
     let mut input_audio_data = vec![];
     input_audio_file.read_to_end(&mut input_audio_data).unwrap();
-    let mut audio_reader = FlipFlopReader::from_interleaved(&input_audio_data);
+    let left_vec = input_audio_data.chunks(4)
+                                       .flat_map(|bytes| vec![bytes[0], bytes[1]])
+                                       .collect::<Vec<u8>>();
+    let mut left_cursor = io::Cursor::new(left_vec);
+    let right_vec = input_audio_data.chunks(4)
+                                        .flat_map(|bytes| vec![bytes[2], bytes[3]])
+                                        .collect::<Vec<u8>>();
+    let mut right_cursor = &mut io::Cursor::new(right_vec);
 
     let output = matches.value_of("output").unwrap();
     let mut output_file;
@@ -156,7 +113,7 @@ fn main() {
     output_file.write(&input_video_buf[0..header.length]).unwrap();
     // Next copy through every sample
     for sample in header.stab.sample_table {
-        match copy_sample(header.length, &sample, &input_video_buf, &mut audio_reader, &mut output_file) {
+        match copy_sample(header.length, &sample, &input_video_buf, &mut left_cursor, &mut right_cursor, &mut output_file) {
             Ok(_) => {},
             Err(e) => {
                 println!("Error processing sample at offset {}: {}", sample.offset, e);
