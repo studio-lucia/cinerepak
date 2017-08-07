@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Read;
+use std::io::{Seek, SeekFrom};
 use std::path::Path;
 use std::process::exit;
 
@@ -55,11 +56,23 @@ fn main() {
             exit(1);
         }
     }
-    // This is obviously too big to read at once,
-    // but the header parser assumes you have all the data up front,
-    // and the sample table is legitimately quite big.
-    // Will fix this later, maybe, probably.
-    let mut buffer = vec![0; 128_000];
+
+    // First, we read the first 8 bytes to determine
+    // a) is this a Sega FILM file?, and
+    // b) how long is the header?
+    // The latter is variable-length, so this saves us from
+    // naively reading way too many bytes off the top.
+    let mut header_buffer = vec![0; 8];
+    input_file.read(&mut header_buffer).unwrap();
+    if !FILMHeader::is_film_file(&header_buffer) {
+        println!("Input file {} is not a valid Sega FILM file!", input);
+        exit(1);
+    }
+    let header_length = FILMHeader::guess_length(&header_buffer);
+
+    let mut buffer = vec![0; header_length];
+    // Since we previously read 8 bytes off the top
+    input_file.seek(SeekFrom::Start(0)).unwrap();
     input_file.read(&mut buffer).unwrap();
 
     let header;
