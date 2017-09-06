@@ -4,8 +4,8 @@ use std::io::{Seek, SeekFrom};
 use std::path::Path;
 use std::process::exit;
 
-extern crate cinerepak;
-use cinerepak::FILMHeader;
+extern crate sega_film;
+use sega_film::container::FILMHeader;
 
 extern crate clap;
 use clap::{Arg, App};

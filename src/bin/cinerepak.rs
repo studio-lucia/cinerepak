@@ -5,8 +5,8 @@ use std::io::Write;
 use std::path::Path;
 use std::process::exit;
 
-extern crate cinerepak;
-use cinerepak::{FILMHeader, Sample};
+extern crate sega_film;
+use sega_film::container::{FILMHeader, Sample};
 
 extern crate clap;
 use clap::{Arg, App};
