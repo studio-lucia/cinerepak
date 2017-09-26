@@ -11,7 +11,11 @@ use sega_film::container::{FILMHeader, Sample};
 extern crate clap;
 use clap::{Arg, App};
 
-fn copy_sample(start_of_data : usize, sample : &Sample, remux_stereo : bool, cpk_data : &[u8], mut left_audio_buf : &mut io::Cursor<Vec<u8>>, mut right_audio_buf : &mut io::Cursor<Vec<u8>>, output_file : &mut File) -> io::Result<()> {
+struct AudioData {
+    pub buffers : Vec<io::Cursor<Vec<u8>>>,
+}
+
+fn copy_sample(start_of_data : usize, sample : &Sample, cpk_data : &[u8], audio : &mut AudioData, output_file : &mut File) -> io::Result<()> {
     let start_offset = sample.offset + start_of_data;
 
     // Pass through video samples unaltered
@@ -21,15 +25,15 @@ fn copy_sample(start_of_data : usize, sample : &Sample, remux_stereo : bool, cpk
     }
 
     let mut left_buf;
-    if remux_stereo {
+    if audio.buffers.len() == 2 {
         left_buf = vec![0; sample.length / 2];
-        left_audio_buf.read(&mut left_buf)?;
+        audio.buffers[0].read(&mut left_buf)?;
         let mut right_buf = vec![0; sample.length / 2];
-        right_audio_buf.read(&mut right_buf)?;
+        audio.buffers[1].read(&mut right_buf)?;
         left_buf.extend(right_buf);
     } else {
         left_buf = vec![0; sample.length];
-        left_audio_buf.read(&mut left_buf)?;
+        audio.buffers[0].read(&mut left_buf)?;
     }
     output_file.write(&left_buf)?;
 
@@ -105,12 +109,9 @@ fn main() {
         }
     }
 
+    let mut data;
     let mut input_audio_data = vec![];
     input_audio_file.read_to_end(&mut input_audio_data).unwrap();
-    let left_vec;
-    let mut left_cursor;
-    let right_vec;
-    let mut right_cursor;
 
     let remux_stereo = header.fdsc.channels == 2 && header.fdsc.audio_codec() == "pcm";
     // Support reformatting stereo audio; this will mangle any other format.
@@ -135,29 +136,32 @@ fn main() {
             chunk_size = 2;
         }
 
-        left_vec = input_audio_data.chunks(chunk_size)
+        let left_vec = input_audio_data.chunks(chunk_size)
                                            .flat_map(|bytes| bytes[0..chunk_size / 2].to_vec())
                                            .collect::<Vec<u8>>();
-        left_cursor = io::Cursor::new(left_vec);
-        right_vec = input_audio_data.chunks(chunk_size)
+        let left_cursor = io::Cursor::new(left_vec);
+        let right_vec = input_audio_data.chunks(chunk_size)
                                             .flat_map(|bytes| bytes[chunk_size / 2..chunk_size].to_vec())
                                             .collect::<Vec<u8>>();
-        right_cursor = io::Cursor::new(right_vec);
+        let right_cursor = io::Cursor::new(right_vec);
+
+        data = AudioData {
+            buffers : vec![left_cursor, right_cursor],
+        };
     // Pass through audio unaltered.
     } else {
-        left_vec = input_audio_data;
-        left_cursor = io::Cursor::new(left_vec);
+        let cursor = io::Cursor::new(input_audio_data);
 
-        // Dummy values, not used in this context.
-        right_vec = vec![];
-        right_cursor = io::Cursor::new(right_vec);
+        data = AudioData {
+            buffers : vec![cursor],
+        };
     }
 
     // OK, first let's copy the header into the output file
     output_file.write(&input_video_buf[0..header.length]).unwrap();
     // Next copy through every sample
     for sample in header.stab.sample_table {
-        match copy_sample(header.length, &sample, remux_stereo, &input_video_buf, &mut left_cursor, &mut right_cursor, &mut output_file) {
+        match copy_sample(header.length, &sample, &input_video_buf, &mut data, &mut output_file) {
             Ok(_) => {},
             Err(e) => {
                 println!("Error processing sample at offset {}: {}", sample.offset, e);
