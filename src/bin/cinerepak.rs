@@ -126,15 +126,24 @@ fn main() {
         // To accommodate that, we need to separate the audio data into left/right
         // segments here so that they can be reformatted into planar chunks as
         // necessary.
-        left_vec = input_audio_data.chunks(4)
-                                           .flat_map(|bytes| vec![bytes[0], bytes[1]])
+
+        // A pair of 16-bit samples is 4 bytes (2 bytes per sample)
+        let chunk_size;
+        if header.fdsc.audio_resolution == 16 {
+            chunk_size = 4;
+        } else {
+            chunk_size = 2;
+        }
+
+        left_vec = input_audio_data.chunks(chunk_size)
+                                           .flat_map(|bytes| bytes[0..chunk_size / 2].to_vec())
                                            .collect::<Vec<u8>>();
         left_cursor = io::Cursor::new(left_vec);
-        right_vec = input_audio_data.chunks(4)
-                                            .flat_map(|bytes| vec![bytes[2], bytes[3]])
+        right_vec = input_audio_data.chunks(chunk_size)
+                                            .flat_map(|bytes| bytes[chunk_size / 2..chunk_size].to_vec())
                                             .collect::<Vec<u8>>();
         right_cursor = io::Cursor::new(right_vec);
-    // TODO this will support ADX, but not 8-bit stereo PCM (like Magical School Lunar)
+    // Pass through audio unaltered.
     } else {
         left_vec = input_audio_data;
         left_cursor = io::Cursor::new(left_vec);
