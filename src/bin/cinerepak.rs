@@ -137,12 +137,12 @@ fn main() {
         }
 
         let left_vec = input_audio_data.chunks(chunk_size)
-                                           .flat_map(|bytes| bytes[0..chunk_size / 2].to_vec())
-                                           .collect::<Vec<u8>>();
+                                        .flat_map(|bytes| bytes[0..chunk_size / 2].to_vec())
+                                        .collect::<Vec<u8>>();
         let left_cursor = io::Cursor::new(left_vec);
         let right_vec = input_audio_data.chunks(chunk_size)
-                                            .flat_map(|bytes| bytes[chunk_size / 2..chunk_size].to_vec())
-                                            .collect::<Vec<u8>>();
+                                        .flat_map(|bytes| bytes[chunk_size / 2..chunk_size].to_vec())
+                                        .collect::<Vec<u8>>();
         let right_cursor = io::Cursor::new(right_vec);
 
         data = AudioData {
