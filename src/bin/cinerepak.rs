@@ -11,7 +11,7 @@ use sega_film::container::{FILMHeader, Sample};
 extern crate clap;
 use clap::{Arg, App};
 
-fn copy_sample(start_of_data : usize, sample : &Sample, cpk_data : &[u8], mut left_audio_buf : &mut io::Cursor<Vec<u8>>, mut right_audio_buf : &mut io::Cursor<Vec<u8>>, output_file : &mut File) -> io::Result<()> {
+fn copy_sample(start_of_data : usize, sample : &Sample, remux_stereo : bool, cpk_data : &[u8], mut left_audio_buf : &mut io::Cursor<Vec<u8>>, mut right_audio_buf : &mut io::Cursor<Vec<u8>>, output_file : &mut File) -> io::Result<()> {
     let start_offset = sample.offset + start_of_data;
 
     // Pass through video samples unaltered
@@ -20,11 +20,17 @@ fn copy_sample(start_of_data : usize, sample : &Sample, cpk_data : &[u8], mut le
         return Ok(());
     }
 
-    let mut left_buf = vec![0; sample.length / 2];
-    left_audio_buf.read(&mut left_buf)?;
-    let mut right_buf = vec![0; sample.length / 2];
-    right_audio_buf.read(&mut right_buf)?;
-    left_buf.extend(right_buf);
+    let mut left_buf;
+    if remux_stereo {
+        left_buf = vec![0; sample.length / 2];
+        left_audio_buf.read(&mut left_buf)?;
+        let mut right_buf = vec![0; sample.length / 2];
+        right_audio_buf.read(&mut right_buf)?;
+        left_buf.extend(right_buf);
+    } else {
+        left_buf = vec![0; sample.length];
+        left_audio_buf.read(&mut left_buf)?;
+    }
     output_file.write(&left_buf)?;
 
     return Ok(());
@@ -76,28 +82,6 @@ fn main() {
         }
     }
 
-    // Sega FILM uses a planar audio format, rather than the standard
-    // interleaved stereo used by most audio formats.
-    // In most audio formats, each pair of left/right audio samples is interleaved.
-    // It looks like this: L R L R L R L R
-    // In Sega FILM files, each audio chunk instead groups together batches of
-    // left/right audio samples. The first half of a chunk contains left samples,
-    // and the second half contains right samples. It looks something like this:
-    // L L L L R R R R
-    // To accommodate that, we need to separate the audio data into left/right
-    // segments here so that they can be reformatted into planar chunks as
-    // necessary.
-    let mut input_audio_data = vec![];
-    input_audio_file.read_to_end(&mut input_audio_data).unwrap();
-    let left_vec = input_audio_data.chunks(4)
-                                       .flat_map(|bytes| vec![bytes[0], bytes[1]])
-                                       .collect::<Vec<u8>>();
-    let mut left_cursor = io::Cursor::new(left_vec);
-    let right_vec = input_audio_data.chunks(4)
-                                        .flat_map(|bytes| vec![bytes[2], bytes[3]])
-                                        .collect::<Vec<u8>>();
-    let mut right_cursor = &mut io::Cursor::new(right_vec);
-
     let output = matches.value_of("output").unwrap();
     let mut output_file;
     match File::create(output) {
@@ -121,11 +105,50 @@ fn main() {
         }
     }
 
+    let mut input_audio_data = vec![];
+    input_audio_file.read_to_end(&mut input_audio_data).unwrap();
+    let left_vec;
+    let mut left_cursor;
+    let right_vec;
+    let mut right_cursor;
+
+    let remux_stereo = header.fdsc.channels == 2 && header.fdsc.audio_codec() == "pcm";
+    // Support reformatting stereo audio; this will mangle any other format.
+    if remux_stereo {
+        // Sega FILM uses a planar audio format, rather than the standard
+        // interleaved stereo used by most audio formats.
+        // In most audio formats, each pair of left/right audio samples is interleaved.
+        // It looks like this: L R L R L R L R
+        // In Sega FILM files, each audio chunk instead groups together batches of
+        // left/right audio samples. The first half of a chunk contains left samples,
+        // and the second half contains right samples. It looks something like this:
+        // L L L L R R R R
+        // To accommodate that, we need to separate the audio data into left/right
+        // segments here so that they can be reformatted into planar chunks as
+        // necessary.
+        left_vec = input_audio_data.chunks(4)
+                                           .flat_map(|bytes| vec![bytes[0], bytes[1]])
+                                           .collect::<Vec<u8>>();
+        left_cursor = io::Cursor::new(left_vec);
+        right_vec = input_audio_data.chunks(4)
+                                            .flat_map(|bytes| vec![bytes[2], bytes[3]])
+                                            .collect::<Vec<u8>>();
+        right_cursor = io::Cursor::new(right_vec);
+    // TODO this will support ADX, but not 8-bit stereo PCM (like Magical School Lunar)
+    } else {
+        left_vec = input_audio_data;
+        left_cursor = io::Cursor::new(left_vec);
+
+        // Dummy values, not used in this context.
+        right_vec = vec![];
+        right_cursor = io::Cursor::new(right_vec);
+    }
+
     // OK, first let's copy the header into the output file
     output_file.write(&input_video_buf[0..header.length]).unwrap();
     // Next copy through every sample
     for sample in header.stab.sample_table {
-        match copy_sample(header.length, &sample, &input_video_buf, &mut left_cursor, &mut right_cursor, &mut output_file) {
+        match copy_sample(header.length, &sample, remux_stereo, &input_video_buf, &mut left_cursor, &mut right_cursor, &mut output_file) {
             Ok(_) => {},
             Err(e) => {
                 println!("Error processing sample at offset {}: {}", sample.offset, e);
