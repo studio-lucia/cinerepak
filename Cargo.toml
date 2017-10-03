@@ -5,4 +5,4 @@ authors = ["Misty De Meo <mistydemeo@gmail.com>"]
 
 [dependencies]
 clap = "2.24.2"
-sega_film = { git = "https://github.com/mistydemeo/sega_film.git", rev = "5087b731524e0fb07cdf8bddccfad321cd117856" }
+sega_film = "0.1.0"
