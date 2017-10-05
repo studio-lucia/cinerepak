@@ -160,7 +160,7 @@ fn main() {
     // OK, first let's copy the header into the output file
     output_file.write(&input_video_buf[0..header.length]).unwrap();
     // Next copy through every sample
-    for sample in header.stab.sample_table {
+    for sample in &header.stab.sample_table {
         match copy_sample(header.length, &sample, &input_video_buf, &mut data, &mut output_file) {
             Ok(_) => {},
             Err(e) => {
@@ -168,5 +168,14 @@ fn main() {
                 exit(1);
             }
         }
+    }
+
+    // Finally, if there's any data that comes after the samples,
+    // we want to make sure that gets copied.
+    let last_sample_index = &header.stab.sample_table.len() - 1;
+    let last_sample = &header.stab.sample_table[last_sample_index];
+    let trailer_offset = header.length + last_sample.offset + last_sample.length;
+    if input_video_buf.len() > trailer_offset {
+        output_file.write(&input_video_buf[trailer_offset..input_video_buf.len()]).unwrap();
     }
 }
